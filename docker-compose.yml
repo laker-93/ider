@@ -1,0 +1,15 @@
+version: '3.4'
+services:
+  ider:
+    image: ider
+    restart: unless-stopped
+    container_name: ider
+    ports:
+      - "8001:8001"
+    volumes:
+      - "public-music:/music"
+
+volumes:
+  public-music:
+    external: true
+

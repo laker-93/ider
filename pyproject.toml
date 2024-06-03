@@ -1,0 +1,35 @@
+[project]
+name = "ider"
+description = "CRUD app that wraps a audio file segment to musicbrainz id database. Populates segments of an audio file with musicbrainz id of track being played."
+readme = "README.md"
+version = '0.0.1'
+authors = [
+    { name = "Luke Purnell", email = "luke.a.purnell@gmail.com" }
+]
+dependencies = [
+    "tinydb",
+    "aiohttp",
+    "pyyaml",
+    "fastapi",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "flake8",
+    "black",
+    "coverage",
+]
+test = [
+    "pytest",
+    "flake8>=6.1.0",
+    "mypy",
+    "coverage"
+]
+publish = [
+    "build",
+    "twine",
+    "wheel",
+    "setuptools",
+]

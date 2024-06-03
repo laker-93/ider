@@ -1,0 +1,4 @@
+---
+app_env: dev
+beets_client_addr: 'http://host.docker.internal:8337'
+acoustid_client_addr: 'http://host.docker.internal:3382'
