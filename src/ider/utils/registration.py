@@ -10,34 +10,47 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ider.clients.acoustid_client import AcoustIDClient
 from ider.clients.beets_client import BeetsClient
+from ider.controllers.db_controller import DbController
+from ider.controllers.ffmpeg_controller import FFMPEGController
 from ider.controllers.fpcalc_controller import FPCalcController
 from ider.factories.create_aiohttp_session import init_aiohttp_session
 from ider.factories.create_db import create_db_controller
+from ider.orchestrators.match_orchestrator import MatchOrchestrator
 from ider.routers import segment_api
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.db_controller = create_db_controller(app.state.app_env)
+    db_controller = create_db_controller(app.state.app_env)
+    app.state.db_controller = db_controller
     app.state.fp_calc_controller = FPCalcController()
     async with init_aiohttp_session(
     ) as beets_session, init_aiohttp_session(
         auth=BasicAuth('acoustid', 'acoustid')
     ) as acoustid_session:
         app.state.beets_client = BeetsClient(
-            app.state.beets_client_addr,
+            app.state.beets_user_client_addr,
+            app.state.beets_public_client_addr,
             beets_session
         )
-        app.state.acoustid_client = AcoustIDClient(
+        acoustid_client = AcoustIDClient(
             app.state.acoustid_client_addr,
             acoustid_session
+        )
+        app.state.acoustid_client = acoustid_client
+        app.state.match_orchestrator = MatchOrchestrator(
+            ffmpeg_controller=FFMPEGController(),
+            fpcalc_controller=FPCalcController(),
+            acoustid_client=acoustid_client,
+            db_controller=db_controller
         )
         yield
 
 
 def create_app(app_config: Dict):
     app_env = app_config["app_env"]
-    beets_client_addr = app_config["beets_client_addr"]
+    beets_user_client_addr = app_config["beets_user_client_addr"]
+    beets_public_client_addr = app_config["beets_public_client_addr"]
     acoustid_client_addr = app_config["acoustid_client_addr"]
     app = FastAPI(lifespan=lifespan)
     app.add_middleware(
@@ -48,7 +61,8 @@ def create_app(app_config: Dict):
         allow_headers=["*"],
     )
     app.state.app_env = app_env
-    app.state.beets_client_addr = beets_client_addr
+    app.state.beets_user_client_addr = beets_user_client_addr
+    app.state.beets_public_client_addr = beets_public_client_addr
     app.state.acoustid_client_addr = acoustid_client_addr
 
     app.include_router(segment_api.router)

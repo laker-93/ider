@@ -1,3 +1,4 @@
+import json
 import logging
 from dataclasses import dataclass
 from json import JSONDecodeError
@@ -63,16 +64,14 @@ class AcoustIDClient:
             response = await self.post(url, data=payload)
             print(response)
 
+    async def search_for_match(self, fingerprint: str) -> None | dict:
+        url = "http://localhost:3382/v1/priv/prod-music/_search"
+        params = {
+            "stream": True,
+            "fingerprint": fingerprint
+        }
+        response = await self.post(url, data=params)
+        match = json.loads(response)
+        print(f'got match {match}')
+        return match.get("metadata")
 
-    async def get_paths_of_users_tracks(self, user: str) -> List[IderTrack]:
-        url = f"{self._addr}/item/query/user:{user}"
-        response = await self.get(url)
-        assert len(response['results'])
-        results = response['results']
-        paths = []
-        for result in results:
-            path = Path(result['path'].lstrip(self._base_path_to_remove))
-            id = result['id']
-            assert path.exists()
-            paths.append(IderTrack(file_path=path, beets_id=id))
-        return paths

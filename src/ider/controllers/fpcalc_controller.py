@@ -7,28 +7,27 @@ from pathlib import Path
 from typing import List
 
 from ider.models.ider_track import IderTrack
+from ider.utils.run_sub_cmd import run_sub_cmd
 
 logger = logging.getLogger(__name__)
 
 
 class FPCalcController:
+    def __init__(self):
+        self._cmd = "fpcalc -json {file_path}"
 
-    @staticmethod
-    async def _calculate_fpcalc(file_path: Path) -> str:
-        proc = await asyncio.create_subprocess_shell(
-            f"fpcalc -json '{file_path}'",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if stderr:
-            msg = f'error occurred attempting to fpcalc {file_path}: stderr'
-            logger.exception(msg)
-            raise RuntimeError(msg)
-        logger.info(f'lajp got fingerprint: {stdout.decode()}')
-        fpcalc_result = json.loads(stdout.decode())
-        return fpcalc_result['fingerprint']
-
-    async def calculate_fpcalc(self, tracks: List[IderTrack]):
+    async def set_fingerprints(self, tracks: List[IderTrack]):
         for track in tracks:
-            track.fingerprint = await self._calculate_fpcalc(track.file_path)
+            track.fingerprint = await self.calculate_fingerprint(track)
+
+    async def calculate_fingerprint(self, file_path: Path) -> str:
+        cmd = self._cmd.format(file_path=file_path)
+        try:
+            output = await run_sub_cmd(cmd)
+            result = json.loads(output)
+        except RuntimeError:
+            msg = f'following error occurred attempting to fpcalc {file_path}:'
+            logger.exception(msg)
+            raise
+        else:
+            return result['fingerprint']

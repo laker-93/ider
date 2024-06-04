@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 
 class BeetsClient:
 
-    def __init__(self, addr: str, session):
+    def __init__(self, addr: str, public_addr: str, session):
         self._addr = addr
+        self._public_addr = public_addr
         self._session = session
 
     @staticmethod
@@ -43,8 +44,8 @@ class BeetsClient:
             result = await self._get_response(resp)
             return result
 
-    async def get_path_of_user_track(self, beet_id: int, user: str) -> IderTrack:
-        url = f"{self._addr}/item/query/id:{beet_id}/user:{user}"
+    async def get_path_of_public_user_track(self, beet_id: int, user: str) -> IderTrack:
+        url = f"{self._public_addr}/item/query/id:{beet_id}/user:{user}"
         response = await self.get(url)
         assert len(response['results']) == 1
         results = response['results']
@@ -52,8 +53,11 @@ class BeetsClient:
         title = results['title']
         artist_name = results['artist']
         mbid = results['mb_trackid']
+        duration = results['length']
         assert path.exists()
-        return IderTrack(file_path=path, beets_id=beet_id, musicbrainz_id=mbid, title=title, artist=artist_name)
+        return IderTrack(
+            file_path=path, beets_id=beet_id, musicbrainz_id=mbid, title=title, artist=artist_name, duration=duration
+        )
 
     async def get_paths_of_users_tracks(self, user: str) -> List[IderTrack]:
         url = f"{self._addr}/item/query/user:{user}"
@@ -67,6 +71,11 @@ class BeetsClient:
             title = result['title']
             artist = result['artist']
             mbid = result['mb_trackid']
+            duration = results['length']
             assert path.exists()
-            paths.append(IderTrack(file_path=path, beets_id=id, musicbrainz_id=mbid, title=title, artist=artist))
+            paths.append(
+                IderTrack(
+                    file_path=path, beets_id=id, musicbrainz_id=mbid, title=title, artist=artist, duration=duration
+                )
+            )
         return paths
