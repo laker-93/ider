@@ -9,7 +9,7 @@ class IderTrack:
     beets_id: int
     title: str
     artist: str
-    duration: float
+    duration: Optional[float]
     musicbrainz_id: Optional[str]
     fingerprint: Optional[str] = None
 

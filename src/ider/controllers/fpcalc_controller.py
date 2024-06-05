@@ -14,11 +14,7 @@ logger = logging.getLogger(__name__)
 
 class FPCalcController:
     def __init__(self):
-        self._cmd = "fpcalc -json {file_path}"
-
-    async def set_fingerprints(self, tracks: List[IderTrack]):
-        for track in tracks:
-            track.fingerprint = await self.calculate_fingerprint(track)
+        self._cmd = "fpcalc -json '{file_path}'"
 
     async def calculate_fingerprint(self, file_path: Path) -> str:
         cmd = self._cmd.format(file_path=file_path)

@@ -1,5 +1,5 @@
 ---
 app_env: dev
-beets_user_client_addr: 'http://host.docker.internal:8337' # todo find dynamically by querying pymix to get the user's beets port.
-beets_public_client_addr: 'http://host.docker.internal:8338'
+beets_user_client_addr: 'http://host.docker.internal:8338' # todo find dynamically by querying pymix to get the user's beets port.
+beets_public_client_addr: 'http://host.docker.internal:8337'
 acoustid_client_addr: 'http://host.docker.internal:3382'

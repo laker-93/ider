@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from ider.clients.acoustid_client import AcoustIDClient
@@ -23,20 +24,20 @@ class MatchOrchestrator:
         self._acoustid_client = acoustid_client
         self._db_controller = db_controller
 
-    async def match(self, track: IderTrack):
+    async def match(self, track: IderTrack) -> int:
+        n_segments_saved = 0
         with TemporaryDirectory() as tmp_dir:
-            output_path = tmp_dir / track.title
+            output_path = (Path(tmp_dir) / Path(track.title)).with_suffix(track.file_path.suffix)
             start = 0
             window_size = 15
             await self._ffmpeg_controller.make_segment(start, track.file_path, window_size, output_path)
             fingerprint = await self._fpcalc_controller.calculate_fingerprint(output_path)
             match = await self._acoustid_client.search_for_match(fingerprint)
-            n_segments_saved = 0
             while (start + window_size) < track.duration:
                 if match:
                     logger.info("saving segment to db")
                     self._db_controller.upload_track_segment(
-                        track.beets_id, start, start + window_size, match['mbid'], match['artist'], match['title']
+                        track.beets_id, start, start + window_size, match['mb_id'], match['artist'], match['title']
                     )
                     n_segments_saved += 1
                     start += window_size
@@ -46,3 +47,4 @@ class MatchOrchestrator:
                 fingerprint = await self._fpcalc_controller.calculate_fingerprint(output_path)
                 match = await self._acoustid_client.search_for_match(fingerprint)
         logger.info("saved %d segments to db", n_segments_saved)
+        return n_segments_saved

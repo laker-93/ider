@@ -1,4 +1,6 @@
 import logging
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -35,11 +37,14 @@ async def push_fingerprints(
         fp_calc_controller: FPCalcController = Depends(get_fp_calc_controller),
         acoustid_client: AcoustIDClient = Depends(get_acoustid_client)
 ) -> int:
-    ider_tracks = await beets_client.get_paths_of_users_tracks(user)
-    logger.info("found %d tracks for user %s", len(ider_tracks), user)
-    await fp_calc_controller.set_fingerprints(ider_tracks)
-    await acoustid_client.push_fingerprints(ider_tracks)
-    return len(ider_tracks)
+    n_tracks = 0
+    with TemporaryDirectory() as tmp_dir:
+        async for ider_track in beets_client.download_users_tracks(Path(tmp_dir), user):
+            ider_track.fingerprint = await fp_calc_controller.calculate_fingerprint(ider_track.file_path)
+            fingerprint_pushed = await acoustid_client.push_fingerprints(ider_track)
+            if fingerprint_pushed:
+                n_tracks += 1
+    return n_tracks
 
 @router.post("/match_segments")
 async def match_segments(
@@ -47,7 +52,8 @@ async def match_segments(
         match_orchestrator: MatchOrchestrator = Depends(get_match_orchestrator),
 ) -> int:
     ider_track = await beets_client.get_path_of_public_user_track(beet_id, user)
-    await match_orchestrator.match(ider_track)
+    segments_matched = await match_orchestrator.match(ider_track)
+    return segments_matched
 
 
 
@@ -55,5 +61,5 @@ async def match_segments(
 def get_segment(
         track_id: int, time: int, db_controller: DbController = Depends(get_db_controller)
 ) -> Optional[str]:
-    mbid = db_controller.get_mbid_by_time(track_id, time)
+    mbid = db_controller.get_id_by_time(track_id, time)
     return mbid

@@ -11,6 +11,8 @@ from ider.models.ider_track import IderTrack
 
 logger = logging.getLogger(__name__)
 
+class DuplicateFingerprint(Exception):
+    pass
 
 class AcoustIDClient:
 
@@ -29,6 +31,8 @@ class AcoustIDClient:
             result = result.decode()
         if resp.status != 200:
             error_msg = f"failed request with detail {result} and response {resp}"
+            if result['error']['type'] == 'duplicate':
+                raise DuplicateFingerprint()
             logger.error(error_msg)
             raise ClientResponseError(
                 resp.request_info,
@@ -49,29 +53,39 @@ class AcoustIDClient:
             result = await self._get_response(resp)
             return result
 
-    async def push_fingerprints(self, tracks: List[IderTrack]) -> bool:
+    async def push_fingerprints(self, track: IderTrack) -> bool:
         url = f"{self._addr}/v1/priv/prod-music"
-        for track in tracks:
-            assert track.fingerprint
-            payload = {
-                "fingerprint": track.fingerprint,
-                "metadata": {
-                    "title": track.title,
-                    "artist": track.artist,
-                    "mb_id": track.musicbrainz_id
-                },
-            }
-            response = await self.post(url, data=payload)
-            print(response)
+        assert track.fingerprint
+        result = False
+        payload = {
+            "fingerprint": track.fingerprint,
+            "metadata": {
+                "title": track.title,
+                "artist": track.artist,
+                "mb_id": track.musicbrainz_id
+            },
+        }
+        try:
+            await self.post(url, data=payload)
+        except DuplicateFingerprint:
+            logger.info(f'The fingerprint of track %s is already in the acoustid db', track)
+        else:
+            result = True
+        return result
 
     async def search_for_match(self, fingerprint: str) -> None | dict:
-        url = "http://localhost:3382/v1/priv/prod-music/_search"
+        url = f"{self._addr}/v1/priv/prod-music/_search"
         params = {
             "stream": True,
             "fingerprint": fingerprint
         }
-        response = await self.post(url, data=params)
-        match = json.loads(response)
-        print(f'got match {match}')
-        return match.get("metadata")
-
+        match = await self.post(url, data=params)
+        match_results = match.get('results')
+        metadata = None
+        if len(match_results) == 1:
+            metadata = match_results[0].get('metadata')
+        if len(match_results) > 1:
+            msg = 'got %d match results %s', len(match_results), match
+            logger.error(msg)
+            raise ValueError(msg)
+        return metadata
