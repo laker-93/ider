@@ -1,13 +1,11 @@
-import json
 import logging
-from dataclasses import dataclass
 from json import JSONDecodeError
-from pathlib import Path
-from typing import List, Optional
+from typing import AsyncIterator
 
 from aiohttp import ClientResponseError
 
 from ider.models.ider_track import IderTrack
+from ider.models.match import Match
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,7 @@ class AcoustIDClient:
             result = True
         return result
 
-    async def search_for_match(self, fingerprint: str) -> None | dict:
+    async def search_for_match(self, fingerprint: str, window_size: float) -> AsyncIterator[None | Match]:
         url = f"{self._addr}/v1/priv/prod-music/_search"
         params = {
             "stream": True,
@@ -81,11 +79,27 @@ class AcoustIDClient:
         }
         match = await self.post(url, data=params)
         match_results = match.get('results')
-        metadata = None
-        if len(match_results) == 1:
-            metadata = match_results[0].get('metadata')
-        if len(match_results) > 1:
-            msg = 'got %d match results %s', len(match_results), match
-            logger.error(msg)
-            raise ValueError(msg)
-        return metadata
+        logger.info(f'got match results {match_results}')
+        for result in match_results:
+            metadata = result.get('metadata')
+            if not metadata:
+                logger.warning('no metadata entry found in result %s', result)
+                continue
+            match = result.get('match')
+            if not match:
+                logger.warning('no match entry found in result %s', result)
+                continue
+
+            mb_id = metadata['mb_id']
+            artist = metadata['artist']
+            title = metadata['title']
+            offset = match['position_in_query']
+            duration = match['duration']
+            yield Match(
+                mb_id=mb_id,
+                artist=artist,
+                title=title,
+                duration=duration,
+                window_size=window_size,
+                offset=offset
+            )

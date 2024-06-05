@@ -42,7 +42,8 @@ async def lifespan(app: FastAPI):
             ffmpeg_controller=FFMPEGController(),
             fpcalc_controller=FPCalcController(),
             acoustid_client=acoustid_client,
-            db_controller=db_controller
+            db_controller=db_controller,
+            config=app.state.matching_algo_config
         )
         yield
 
@@ -52,6 +53,7 @@ def create_app(app_config: Dict):
     beets_user_client_addr = app_config["beets_user_client_addr"]
     beets_public_client_addr = app_config["beets_public_client_addr"]
     acoustid_client_addr = app_config["acoustid_client_addr"]
+    matching_algo_config = app_config['matching_algorithm']
     app = FastAPI(lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
@@ -64,6 +66,7 @@ def create_app(app_config: Dict):
     app.state.beets_user_client_addr = beets_user_client_addr
     app.state.beets_public_client_addr = beets_public_client_addr
     app.state.acoustid_client_addr = acoustid_client_addr
+    app.state.matching_algo_config = matching_algo_config
 
     app.include_router(segment_api.router)
     return app

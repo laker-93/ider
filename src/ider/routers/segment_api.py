@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Optional, Tuple, List, Dict
 
 from fastapi import APIRouter, Depends, Request
 
@@ -60,6 +60,6 @@ async def match_segments(
 @router.get("/get_segment")
 def get_segment(
         track_id: int, time: int, db_controller: DbController = Depends(get_db_controller)
-) -> Optional[str]:
-    mbid = db_controller.get_id_by_time(track_id, time)
-    return mbid
+) -> Optional[Dict[str, List[Optional[str]]]]:
+    matches = db_controller.get_ids_by_time(track_id, time)
+    return matches
