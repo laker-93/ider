@@ -32,7 +32,7 @@ class MatchOrchestrator:
         self._consecutive_matches_offset_s = config['consecutive_matches_offset_s']
         self._max_n_match_attempts = config['max_n_match_attempts']
         self._window_size = config['window_size']
-        self._duration_delta = config['duration_delta']
+        self._percentage_window_covered = config['percentage_window_covered']
 
     def _confirm_match(self, potential_matches: List[Match]) -> Iterator[Match]:
         if len(potential_matches) < self._n_consecutive_matches_threshold:
@@ -67,13 +67,14 @@ class MatchOrchestrator:
                 window_size_sum += match.window_size
                 n_matches += 1
         average_window_size = window_size_sum / n_matches
-        duration_covered = 0
+        percentage_window_covered = 0
         for offset, matches in offsets_to_matches.items():
             if len(matches) >= self._n_consecutive_matches_threshold:
                 min_duration_match = min(matches, key=lambda m: m.duration)
-                duration_covered += min_duration_match.duration
+                average_duration = sum(map(lambda m: m.duration, matches)) / len(matches)
+                percentage_window_covered += (average_duration/average_window_size)
                 yield min_duration_match
-            if abs(duration_covered - average_window_size) < self._duration_delta:
+            if percentage_window_covered > self._percentage_window_covered:
                 return
 
 

@@ -9,4 +9,4 @@ matching_algorithm:
     consecutive_matches_offset_s: 1
     max_n_match_attempts: 5
     window_size: 15
-    duration_delta: 1
+    percentage_window_covered: 0.95
