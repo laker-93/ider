@@ -5,8 +5,9 @@ beets_user_client_addr: 'http://host.docker.internal:8338' # todo find dynamical
 beets_public_client_addr: 'http://localhost:8337'
 acoustid_client_addr: 'http://localhost:3382'
 matching_algorithm:
-    n_consecutive_matches_threshold: 3
+    n_consecutive_matches_threshold: 4
     consecutive_matches_offset_s: 1
     max_n_match_attempts: 5
     window_size: 15
     percentage_window_covered: 0.95
+    n_rounds: 5

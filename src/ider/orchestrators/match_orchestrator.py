@@ -33,6 +33,7 @@ class MatchOrchestrator:
         self._max_n_match_attempts = config['max_n_match_attempts']
         self._window_size = config['window_size']
         self._percentage_window_covered = config['percentage_window_covered']
+        self._n_rounds = config['n_rounds']
 
     def _confirm_match(self, potential_matches: List[Match]) -> Iterator[Match]:
         if len(potential_matches) < self._n_consecutive_matches_threshold:
@@ -83,6 +84,7 @@ class MatchOrchestrator:
 
     async def match(self, track: IderTrack) -> int:
         n_segments_saved = 0
+        n_segments = 0
         with TemporaryDirectory() as tmp_dir:
             output_path = (Path(tmp_dir) / Path(track.title)).with_suffix(track.file_path.suffix)
             start = 0
@@ -90,37 +92,28 @@ class MatchOrchestrator:
             matches_found = defaultdict(list)
             while (start + window_size) < track.duration:
                 block_saved = False
-                n_match_attempts = 0
-                potential_matches = []
-                while not block_saved and n_match_attempts < self._max_n_match_attempts:
+                for _ in range(self._n_rounds):
                     await self._ffmpeg_controller.make_segment(int(start), track.file_path, window_size, output_path)
+                    n_segments += 1
                     fingerprint = await self._fpcalc_controller.calculate_fingerprint(output_path)
                     async for match in self._acoustid_client.search_for_match(fingerprint, window_size):
                         if match:
-                            logger.info("potential match found, starting at %d : %s", start, match)
-                            potential_matches.append(match)
-                    prev_confirmed_match = None
-                    for confirmed_match in self._confirm_match(potential_matches):
-                        logger.info('match confirmed from %d : %d details: %s', start, start + confirmed_match.duration, confirmed_match)
-                        if prev_confirmed_match:
-                            if prev_confirmed_match.duration > confirmed_match.offset:
-                                # there is an overlap between confirmed matches must shift the start to account for this
-                                start -= (prev_confirmed_match.duration - confirmed_match.offset)
-                        self._db_controller.upload_track_segment(
-                            track.beets_id, start, start + confirmed_match.duration, confirmed_match.mb_id, confirmed_match.artist, confirmed_match.title
-                        )
-                        n_segments_saved += 1
-                        matches_found[confirmed_match.mb_id].append(confirmed_match)
-                        start += int(confirmed_match.duration)
-                        block_saved = True
-                        prev_confirmed_match = confirmed_match
-                    window_size -= self._consecutive_matches_offset_s
-                    n_match_attempts += 1
+                            segment_start = start + match.offset
+                            segment_end = segment_start + match.duration
+                            assert segment_start < segment_end, match
+                            logger.info("match found, from %f to %f detail: %s", start + match.offset, start + match.duration, match)
+                            self._db_controller.upload_track_segment(
+                                track.beets_id, segment_start, segment_end, match.mb_id, match.artist, match.title, int(start), window_size, n_segments
+                            )
+                            n_segments_saved += 1
+                            block_saved = True
+                    window_size += self._consecutive_matches_offset_s
                 window_size = self._window_size
-
                 if not block_saved:
                     logger.info("no match found in window %d:%d, sliding window along by 1 second.", start, start + window_size)
                     start += 1
+                else:
+                    start += self._window_size * 0.8
 
         logger.info("saved %d segments to db", n_segments_saved)
         logger.info("matches found %s", matches_found)
