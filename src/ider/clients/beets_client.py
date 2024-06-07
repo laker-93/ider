@@ -51,7 +51,6 @@ class BeetsClient:
         assert len(response['results']) == 1
         result = response['results'][0]
         path = Path(result['path'])
-        path = Path('/Users/lukepurnell/workspace/subbox/public/beets/download/skeemask-C-mix.mp3')
         title = result['title']
         artist = result['artist']
         mbid = result['mb_trackid']

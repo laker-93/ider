@@ -79,7 +79,7 @@ class AcoustIDClient:
         }
         match = await self.post(url, data=params)
         match_results = match.get('results')
-        logger.info(f'got match results {match_results}')
+        logger.debug(f'got match results {match_results}')
         for result in match_results:
             metadata = result.get('metadata')
             if not metadata:

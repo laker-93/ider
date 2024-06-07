@@ -92,6 +92,7 @@ class MatchOrchestrator:
             matches_found = defaultdict(list)
             while (start + window_size) < track.duration:
                 block_saved = False
+                window_size = self._window_size
                 for _ in range(self._n_rounds):
                     await self._ffmpeg_controller.make_segment(int(start), track.file_path, window_size, output_path)
                     n_segments += 1
@@ -108,12 +109,12 @@ class MatchOrchestrator:
                             n_segments_saved += 1
                             block_saved = True
                     window_size += self._consecutive_matches_offset_s
-                window_size = self._window_size
+
                 if not block_saved:
                     logger.info("no match found in window %d:%d, sliding window along by 1 second.", start, start + window_size)
                     start += 1
                 else:
-                    start += self._window_size * 0.8
+                    start += self._window_size
 
         logger.info("saved %d segments to db", n_segments_saved)
         logger.info("matches found %s", matches_found)
