@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,23 +14,28 @@ from ider.orchestrators.match_orchestrator import MatchOrchestrator
 
 router = APIRouter()
 
-
 logger = logging.getLogger(__name__)
+
 
 async def get_db_controller(req: Request) -> DbController:
     return req.app.state.db_controller
 
+
 async def get_beets_client(req: Request) -> BeetsClient:
     return req.app.state.beets_client
+
 
 async def get_fp_calc_controller(req: Request) -> FPCalcController:
     return req.app.state.fp_calc_controller
 
+
 async def get_acoustid_client(req: Request) -> AcoustIDClient:
     return req.app.state.acoustid_client
 
+
 async def get_match_orchestrator(req: Request) -> MatchOrchestrator:
     return req.app.state.match_orchestrator
+
 
 @router.post("/push_fingerprints")
 async def push_fingerprints(
@@ -46,6 +52,7 @@ async def push_fingerprints(
                 n_tracks += 1
     return n_tracks
 
+
 @router.post("/match_segments")
 async def match_segments(
         user: str, beet_id: int, beets_client: BeetsClient = Depends(get_beets_client),
@@ -56,10 +63,34 @@ async def match_segments(
     return segments_matched
 
 
-
 @router.get("/get_segment")
 def get_segment(
         track_id: int, time: int, db_controller: DbController = Depends(get_db_controller)
-) ->  Optional[Dict[Tuple[Optional[str], str, str], int]]:
+) -> Optional[str]:
     matches = db_controller.get_ids_by_time(track_id, time)
+    return matches
+
+
+@router.post("/upload_segment")
+async def upload_segment(track_segments_json: str, db_controller: DbController = Depends(get_db_controller)) -> int:
+    track_segments = json.loads(track_segments_json)
+    n_tracks = 0
+    for track_segment in track_segments:
+        db_controller.upload_segment(
+            track_id=track_segment['track_id'],
+            start=track_segment['start'],
+            end=track_segment['end'],
+            mbid=track_segment['mbid'],
+            artist=track_segment['artist'],
+            title=track_segment['title'],
+        )
+        n_tracks += 1
+    return n_tracks
+
+
+@router.get("/get_segments")
+def get_segments(
+        track_id: int, db_controller: DbController = Depends(get_db_controller)
+) -> Optional[list[dict]]:
+    matches = db_controller.get_tracklist(track_id)
     return matches

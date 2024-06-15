@@ -103,7 +103,7 @@ class MatchOrchestrator:
                             segment_end = segment_start + match.duration
                             assert segment_start < segment_end, match
                             logger.info("match found, from %f to %f detail: %s", start + match.offset, start + match.duration, match)
-                            self._db_controller.upload_track_segment(
+                            self._db_controller.upload_raw_match(
                                 track.beets_id, segment_start, segment_end, match.mb_id, match.artist, match.title, int(start), window_size, n_segments
                             )
                             n_segments_saved += 1
